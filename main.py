@@ -121,6 +121,6 @@ while running:
     draw_cars()
     pygame.display.flip()
     clock.tick(60)
-#test for pycharm
+
 pygame.quit()
 sys.exit()
