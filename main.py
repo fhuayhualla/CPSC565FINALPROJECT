@@ -28,6 +28,8 @@ aggressive_car_count = 0
 normal_car_count = 0
 passive_car_count = 0
 
+preferred_color = 'balanced'
+car_preference_active = False
 
 
 class Car:
@@ -65,14 +67,15 @@ class Car:
 
     def adjust_speed(self, other_cars):
         safe_distance = 150 if self.color == 'green' else 120 if self.color == 'yellow' else 100
+        buffer_distance = 10
         min_distance = float('inf')
         for other in other_cars:
             if self.y == other.y and other.x > self.x:
                 distance = other.x - self.x
                 if distance < min_distance:
                     min_distance = distance
-        if min_distance < safe_distance:
-            self.current_speed = max(1, min(self.current_speed, other.current_speed - 1))
+        if min_distance < safe_distance + buffer_distance:
+            self.current_speed = max(1, self.current_speed - 2)
         else:
             self.current_speed = self.base_speed
 
@@ -101,10 +104,19 @@ class Car:
 
 
 class Button:
-    def __init__(self, x, y, width, height, text):
+    def __init__(self, x, y, width, height, text, action=None, dropdown_items=None):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
+        self.action = action
         self.clicked = False
+        self.dropdown = dropdown_items is not None
+        self.dropdown_items = dropdown_items if dropdown_items else []
+        self.show_dropdown = False
+
+        if self.dropdown:
+            for index, item in enumerate(self.dropdown_items):
+                item.rect.x = self.rect.x
+                item.rect.y = self.rect.y + self.rect.height * (index + 1)
 
     def draw(self):
         action = False
@@ -113,19 +125,46 @@ class Button:
             if pygame.mouse.get_pressed()[0] == 1 and not self.clicked:
                 self.clicked = True
                 action = True
+                if self.dropdown:
+                    self.show_dropdown = not self.show_dropdown
             elif pygame.mouse.get_pressed()[0] == 0:
                 self.clicked = False
+
         color = BUTTON_HOVER_COLOR if self.rect.collidepoint(pos) else BUTTON_COLOR
         pygame.draw.rect(screen, color, self.rect)
         text_img = font.render(self.text, True, TEXT_COLOR)
         screen.blit(text_img, (self.rect.x + 20, self.rect.y + 10))
+
+        if self.show_dropdown:
+            for item in self.dropdown_items:
+                item.draw()
+
         return action
 
 
 
+
+
 setup_button = Button(50, 50, 100, 50, 'Setup')
+
+
 go_button = Button(200, 50, 100, 50, 'Go')
 lane_buttons = [Button(400 + i * 110, 50, 100, 50, f'{n} Lanes') for i, n in enumerate([3, 5, 7])]
+
+def set_preference(color):
+    global preferred_color
+    preferred_color = color
+    create_cars()
+    car_pref_button.show_dropdown = False
+
+
+
+car_pref_button = Button(800, 80, 150, 50, 'Car Preferences', dropdown_items=[
+    Button(800, 130, 150, 50, 'More Red Cars', action=lambda: set_preference('More Red Cars')),
+    Button(800, 180, 150, 50, 'More Yellow Cars', action=lambda: set_preference('More Yellow Cars')),
+    Button(800, 230, 150, 50, 'More Green Cars', action=lambda: set_preference('More Green Cars'))
+])
+
 
 
 running = True
@@ -135,10 +174,41 @@ cars = []
 
 
 def create_cars():
-    global cars, num_lanes, color_index
+    global cars, num_lanes, preferred_color
     cars.clear()
     lane_height = (SCREEN_HEIGHT - ROAD_TOP) / num_lanes
-    color_order = ['red', 'yellow', 'green']
+    color_choices = {
+        'More Red Cars': ['red'] * 5 + ['yellow'] + ['green'],
+        'More Yellow Cars': ['yellow'] * 5 + ['red'] + ['green'],
+        'More Green Cars': ['green'] * 5 + ['red'] + ['yellow'],
+        'balanced': ['red', 'yellow', 'green']
+    }
+    selected_colors = color_choices.get(preferred_color, ['red', 'yellow', 'green'])
+
+    for lane in range(num_lanes):
+        y = ROAD_TOP + (lane + 0.5) * lane_height
+        last_x = 50
+        while True:
+            next_min_x = last_x + 100
+            next_max_x = min(SCREEN_WIDTH - 50, next_min_x + 200)
+            if next_min_x >= SCREEN_WIDTH - 50:
+                break
+            if next_min_x > next_max_x:
+                break
+            x = random.randint(next_min_x, next_max_x)
+            color = random.choice(selected_colors)
+            speed = 4 if color == 'red' else (3 if color == 'yellow' else 2)
+            car = Car(x, y, speed, color)
+            cars.append(car)
+            last_x = x
+
+def create_balanced_cars():
+    global cars, num_lanes
+    cars.clear()
+    lane_height = (SCREEN_HEIGHT - ROAD_TOP) / num_lanes
+
+    color_choices = ['red', 'yellow', 'green']
+    num_colors = len(color_choices)
     color_index = 0
 
     for lane in range(num_lanes):
@@ -152,12 +222,15 @@ def create_cars():
             if next_min_x > next_max_x:
                 break
             x = random.randint(next_min_x, next_max_x)
-            color = color_order[color_index]
+            color = color_choices[color_index]
+            color_index = (color_index + 1) % num_colors
             speed = 4 if color == 'red' else (3 if color == 'yellow' else 2)
             car = Car(x, y, speed, color)
             cars.append(car)
             last_x = x
-            color_index = (color_index + 1) % len(color_order)
+
+setup_button.action = create_balanced_cars
+
 
 def move_cars():
     global cars, num_lanes, lane_reservations
@@ -237,15 +310,28 @@ def draw_road():
 
 while running:
     screen.fill((30, 30, 30))
-
     draw_road()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            running = False
+            pygame.quit()
+            sys.exit()
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if car_pref_button.rect.collidepoint(event.pos):
+                car_pref_button.clicked = True
+                car_pref_button.show_dropdown = not car_pref_button.show_dropdown
+            elif car_pref_button.show_dropdown:
+                for item in car_pref_button.dropdown_items:
+                    if item.rect.collidepoint(event.pos):
+                        item.action()
+
+    if car_pref_button.draw():
+        if not car_pref_button.show_dropdown:
+            create_cars()
 
     if setup_button.draw():
-        create_cars()
+        setup_button.action()
         simulation_active = False
         aggressive_car_count = 0
         normal_car_count = 0
@@ -268,6 +354,7 @@ while running:
 
     pygame.display.flip()
     clock.tick(60)
+
 
 pygame.quit()
 sys.exit()
