@@ -24,6 +24,11 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, FONT_SIZE)
 lane_reservations = {}
+aggressive_car_count = 0
+normal_car_count = 0
+passive_car_count = 0
+
+
 
 class Car:
     def __init__(self, x, y, speed, color):
@@ -72,7 +77,17 @@ class Car:
             self.current_speed = self.base_speed
 
     def move(self):
+        global aggressive_car_count, normal_car_count, passive_car_count
+
         self.x += self.current_speed
+        if self.x > SCREEN_WIDTH:
+            self.x = -CAR_WIDTH
+            if self.color == 'red':
+                aggressive_car_count += 1
+            elif self.color == 'yellow':
+                normal_car_count += 1
+            elif self.color == 'green':
+                passive_car_count += 1
         if self.x > SCREEN_WIDTH:
             self.x = -CAR_WIDTH
         if self.y != self.target_y:
@@ -120,9 +135,11 @@ cars = []
 
 
 def create_cars():
-    global cars, num_lanes
+    global cars, num_lanes, color_index
     cars.clear()
     lane_height = (SCREEN_HEIGHT - ROAD_TOP) / num_lanes
+    color_order = ['red', 'yellow', 'green']
+    color_index = 0
 
     for lane in range(num_lanes):
         y = ROAD_TOP + (lane + 0.5) * lane_height
@@ -135,11 +152,12 @@ def create_cars():
             if next_min_x > next_max_x:
                 break
             x = random.randint(next_min_x, next_max_x)
-            color = random.choice(CAR_COLORS)
-            speed = 4 if color == 'red' else (2 if color == 'yellow' else 2)
+            color = color_order[color_index]
+            speed = 4 if color == 'red' else (3 if color == 'yellow' else 2)
             car = Car(x, y, speed, color)
             cars.append(car)
             last_x = x
+            color_index = (color_index + 1) % len(color_order)
 
 def move_cars():
     global cars, num_lanes, lane_reservations
@@ -192,6 +210,13 @@ def move_cars():
 
         car.move()
 
+def draw_car_counts():
+    aggressive_text = font.render(f'Aggressive: {aggressive_car_count}', True, TEXT_COLOR)
+    normal_text = font.render(f'Normal: {normal_car_count}', True, TEXT_COLOR)
+    passive_text = font.render(f'Passive: {passive_car_count}', True, TEXT_COLOR)
+    screen.blit(aggressive_text, (800, 10))
+    screen.blit(normal_text, (800, 30))
+    screen.blit(passive_text, (800, 50))
 
 
 def draw_cars():
@@ -222,6 +247,9 @@ while running:
     if setup_button.draw():
         create_cars()
         simulation_active = False
+        aggressive_car_count = 0
+        normal_car_count = 0
+        passive_car_count = 0
 
     if go_button.draw():
         simulation_active = not simulation_active
@@ -236,10 +264,10 @@ while running:
         move_cars()
 
     draw_cars()
+    draw_car_counts()
 
     pygame.display.flip()
     clock.tick(60)
 
 pygame.quit()
 sys.exit()
-
