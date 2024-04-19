@@ -59,13 +59,14 @@ class Car:
         screen.blit(self.car_surface, (self.x, self.y - CAR_HEIGHT // 2))
 
     def adjust_speed(self, other_cars):
+        safe_distance = 150 if self.color == 'green' else 120 if self.color == 'yellow' else 100
         min_distance = float('inf')
         for other in other_cars:
             if self.y == other.y and other.x > self.x:
                 distance = other.x - self.x
                 if distance < min_distance:
                     min_distance = distance
-        if min_distance < 100:
+        if min_distance < safe_distance:
             self.current_speed = max(1, min(self.current_speed, other.current_speed - 1))
         else:
             self.current_speed = self.base_speed
@@ -135,14 +136,10 @@ def create_cars():
                 break
             x = random.randint(next_min_x, next_max_x)
             color = random.choice(CAR_COLORS)
-            speed = 4 if color == 'red' else (3 if color == 'yellow' else 2)
+            speed = 4 if color == 'red' else (2 if color == 'yellow' else 2)
             car = Car(x, y, speed, color)
             cars.append(car)
             last_x = x
-
-
-
-
 
 def move_cars():
     global cars, num_lanes, lane_reservations
@@ -164,10 +161,29 @@ def move_cars():
             if current_lane_index < num_lanes - 1:
                 possible_lanes.append(current_lane_index + 1)
 
+            min_distance_current_lane = float('inf')
+            for other in sorted_cars:
+                if other.y == car.y and other.x > car.x:
+                    distance = other.x - car.x
+                    if distance < min_distance_current_lane:
+                        min_distance_current_lane = distance
+
             for new_lane in possible_lanes:
                 new_y = ROAD_TOP + (new_lane + 0.5) * lane_height
-                if new_lane not in lane_reservations and all(
-                    not (abs(other.y - new_y) < 5 and abs(other.x - car.x) < CAR_WIDTH + 50) for other in sorted_cars):
+                projected_safe = True
+                min_distance_new_lane = float('inf')
+                for other in sorted_cars:
+                    if other != car and abs(other.y - new_y) < 5:
+                        projected_other_x = other.x + other.current_speed
+                        projected_car_x = car.x + car.current_speed
+                        distance = abs(projected_other_x - projected_car_x)
+                        if distance < 100:
+                            projected_safe = False
+                            break
+                        if distance < min_distance_new_lane:
+                            min_distance_new_lane = distance
+
+                if new_lane not in lane_reservations and projected_safe and min_distance_new_lane > min_distance_current_lane:
                     car.target_y = new_y
                     car.is_changing_lanes = True
                     car.lane_change_cooldown = car.lane_change_cooldown_max
