@@ -23,7 +23,7 @@ pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, FONT_SIZE)
-
+lane_reservations = {}
 
 class Car:
     def __init__(self, x, y, speed, color):
@@ -34,7 +34,29 @@ class Car:
         self.color = color
         self.target_y = y
         self.is_changing_lanes = False
+        if color == 'red':
+            self.lane_change_cooldown_max = 120
+        elif color == 'yellow':
+            self.lane_change_cooldown_max = 180
+        else:
+            self.lane_change_cooldown_max = 240
         self.lane_change_cooldown = 0
+        self.car_surface = pygame.Surface((CAR_WIDTH, CAR_HEIGHT))
+        self.draw_car_details()
+
+
+    def draw_car_details(self):
+        pygame.draw.rect(self.car_surface, pygame.Color(self.color), (0, 0, CAR_WIDTH, CAR_HEIGHT))
+        wheel_color = (0, 0, 0)
+        pygame.draw.circle(self.car_surface, wheel_color, (10, 5), 5)
+        pygame.draw.circle(self.car_surface, wheel_color, (CAR_WIDTH - 10, 5), 5)
+        pygame.draw.circle(self.car_surface, wheel_color, (10, CAR_HEIGHT - 5), 5)
+        pygame.draw.circle(self.car_surface, wheel_color, (CAR_WIDTH - 10, CAR_HEIGHT - 5), 5)
+        window_color = (200, 200, 255)
+        pygame.draw.rect(self.car_surface, window_color, (5, 3, CAR_WIDTH - 10, CAR_HEIGHT / 3))
+
+    def draw(self):
+        screen.blit(self.car_surface, (self.x, self.y - CAR_HEIGHT // 2))
 
     def adjust_speed(self, other_cars):
         min_distance = float('inf')
@@ -58,13 +80,9 @@ class Car:
             if abs(self.target_y - self.y) < 2:
                 self.y = self.target_y
                 self.is_changing_lanes = False
-                if self.lane_change_cooldown == 0:
-                    self.lane_change_cooldown = 60
         if self.lane_change_cooldown > 0:
             self.lane_change_cooldown -= 1
 
-    def draw(self):
-        pygame.draw.rect(screen, pygame.Color(self.color), (self.x, self.y - CAR_HEIGHT // 2, CAR_WIDTH, CAR_HEIGHT))
 
 class Button:
     def __init__(self, x, y, width, height, text):
@@ -127,21 +145,34 @@ def create_cars():
 
 
 def move_cars():
-    global cars, num_lanes
+    global cars, num_lanes, lane_reservations
     lane_height = (SCREEN_HEIGHT - ROAD_TOP) / num_lanes
     sorted_cars = sorted(cars, key=lambda c: (c.y, c.x))
 
-    for i, car in enumerate(sorted_cars):
+    for lane in list(lane_reservations.keys()):
+        lane_reservations[lane] -= 1
+        if lane_reservations[lane] <= 0:
+            del lane_reservations[lane]
+
+    for car in sorted_cars:
         car.adjust_speed(sorted_cars)
         if not car.is_changing_lanes and car.lane_change_cooldown == 0:
-            for other in sorted_cars:
-                if other.y == car.y and 0 < other.x - car.x < 80 and other.current_speed < car.base_speed:
-                    possible_lanes = [l for l in range(num_lanes) if l != int((car.y - ROAD_TOP) / lane_height)]
-                    for new_lane in possible_lanes:
-                        new_y = ROAD_TOP + (new_lane + 0.5) * lane_height
-                        if all(not (abs(other.y - new_y) < 5 and abs(other.x - car.x) < CAR_WIDTH + 50) for other in sorted_cars):
-                            car.target_y = new_y
-                            break
+            current_lane_index = int((car.y - ROAD_TOP) / lane_height)
+            possible_lanes = []
+            if current_lane_index > 0:
+                possible_lanes.append(current_lane_index - 1)
+            if current_lane_index < num_lanes - 1:
+                possible_lanes.append(current_lane_index + 1)
+
+            for new_lane in possible_lanes:
+                new_y = ROAD_TOP + (new_lane + 0.5) * lane_height
+                if new_lane not in lane_reservations and all(
+                    not (abs(other.y - new_y) < 5 and abs(other.x - car.x) < CAR_WIDTH + 50) for other in sorted_cars):
+                    car.target_y = new_y
+                    car.is_changing_lanes = True
+                    car.lane_change_cooldown = car.lane_change_cooldown_max
+                    lane_reservations[new_lane] = 60
+                    break
 
         car.move()
 
