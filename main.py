@@ -30,6 +30,7 @@ passive_car_count = 0
 
 preferred_color = 'balanced'
 car_preference_active = False
+schelling_active = False
 
 
 class Car:
@@ -104,21 +105,17 @@ class Car:
 
 
 class Button:
-    def __init__(self, x, y, width, height, text, action=None, dropdown_items=None):
+    def __init__(self, x, y, width, height, text, action=None, dropdown_items=None, active_color=None):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.action = action
+        self.active_color = active_color if active_color else BUTTON_COLOR
         self.clicked = False
         self.dropdown = dropdown_items is not None
         self.dropdown_items = dropdown_items if dropdown_items else []
         self.show_dropdown = False
 
-        if self.dropdown:
-            for index, item in enumerate(self.dropdown_items):
-                item.rect.x = self.rect.x
-                item.rect.y = self.rect.y + self.rect.height * (index + 1)
-
-    def draw(self):
+    def draw(self, active=False):
         action = False
         pos = pygame.mouse.get_pos()
         if self.rect.collidepoint(pos):
@@ -129,8 +126,11 @@ class Button:
                     self.show_dropdown = not self.show_dropdown
             elif pygame.mouse.get_pressed()[0] == 0:
                 self.clicked = False
+        if active:
+            color = self.active_color if self.active_color else BUTTON_HOVER_COLOR
+        else:
+            color = BUTTON_HOVER_COLOR if self.rect.collidepoint(pos) else BUTTON_COLOR
 
-        color = BUTTON_HOVER_COLOR if self.rect.collidepoint(pos) else BUTTON_COLOR
         pygame.draw.rect(screen, color, self.rect)
         text_img = font.render(self.text, True, TEXT_COLOR)
         screen.blit(text_img, (self.rect.x + 20, self.rect.y + 10))
@@ -142,14 +142,11 @@ class Button:
         return action
 
 
-
-
-
 setup_button = Button(50, 50, 100, 50, 'Setup')
 
 
 go_button = Button(200, 50, 100, 50, 'Go')
-lane_buttons = [Button(400 + i * 110, 50, 100, 50, f'{n} Lanes') for i, n in enumerate([3, 5, 7])]
+lane_buttons = [Button(400 + i * 110, 20, 100, 30, f'{n} Lanes') for i, n in enumerate([3, 5, 7])]
 
 def set_preference(color):
     global preferred_color
@@ -157,13 +154,17 @@ def set_preference(color):
     create_cars()
     car_pref_button.show_dropdown = False
 
-
-
 car_pref_button = Button(800, 80, 150, 50, 'Car Preferences', dropdown_items=[
     Button(800, 130, 150, 50, 'More Red Cars', action=lambda: set_preference('More Red Cars')),
     Button(800, 180, 150, 50, 'More Yellow Cars', action=lambda: set_preference('More Yellow Cars')),
     Button(800, 230, 150, 50, 'More Green Cars', action=lambda: set_preference('More Green Cars'))
 ])
+
+def toggle_schelling_mode():
+    global schelling_active
+    schelling_active = not schelling_active
+schelling_button = Button(510, 70, 100, 30, 'Schelling', action=toggle_schelling_mode,active_color=(0, 255, 0))
+
 
 
 
@@ -231,11 +232,27 @@ def create_balanced_cars():
 
 setup_button.action = create_balanced_cars
 
+def apply_schelling_sort():
+    global cars, num_lanes
+    if not schelling_active:
+        return
+
+    sorted_cars = sorted(cars, key=lambda x: -x.base_speed)
+    cars_per_lane = len(sorted_cars) // num_lanes
+
+    for i, car in enumerate(sorted_cars):
+        lane_index = i // cars_per_lane
+        lane_index = min(lane_index, num_lanes - 1)
+        lane_height = (SCREEN_HEIGHT - ROAD_TOP) / num_lanes
+        car.target_y = ROAD_TOP + (lane_index + 0.5) * lane_height
+
 
 def move_cars():
     global cars, num_lanes, lane_reservations
     lane_height = (SCREEN_HEIGHT - ROAD_TOP) / num_lanes
     sorted_cars = sorted(cars, key=lambda c: (c.y, c.x))
+
+    apply_schelling_sort()
 
     for lane in list(lane_reservations.keys()):
         lane_reservations[lane] -= 1
@@ -340,6 +357,9 @@ while running:
     if go_button.draw():
         simulation_active = not simulation_active
 
+    if schelling_button.draw(active=schelling_active):
+        schelling_button.action()
+
     for button in lane_buttons:
         if button.draw():
             num_lanes = int(button.text.split()[0])
@@ -354,7 +374,6 @@ while running:
 
     pygame.display.flip()
     clock.tick(60)
-
 
 pygame.quit()
 sys.exit()
