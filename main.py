@@ -2,7 +2,7 @@ import pygame
 import sys
 import random
 
-
+# Screen settings
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 600
 BUTTON_COLOR = (100, 200, 255)
@@ -18,7 +18,7 @@ DASH_LENGTH = 20
 DASH_SPACE = 20
 ROAD_TOP = 150
 
-
+# Pygame initialization
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
@@ -32,7 +32,6 @@ preferred_color = 'balanced'
 car_preference_active = False
 schelling_active = False
 
-
 class Car:
     def __init__(self, x, y, speed, color):
         self.x = x
@@ -40,8 +39,9 @@ class Car:
         self.base_speed = speed
         self.current_speed = speed
         self.color = color
-        self.target_y = y
+        self.target_y = y  # Target Y position for lane changes
         self.is_changing_lanes = False
+        # Set cooldown period for lane changes based on the color of the car
         if color == 'red':
             self.lane_change_cooldown_max = 120
         elif color == 'yellow':
@@ -49,7 +49,7 @@ class Car:
         else:
             self.lane_change_cooldown_max = 240
         self.lane_change_cooldown = 0
-        self.car_surface = pygame.Surface((CAR_WIDTH, CAR_HEIGHT))
+        self.car_surface = pygame.Surface((CAR_WIDTH, CAR_HEIGHT))  # Create a surface for drawing the car
         self.draw_car_details()
 
 
@@ -67,14 +67,17 @@ class Car:
         screen.blit(self.car_surface, (self.x, self.y - CAR_HEIGHT // 2))
 
     def adjust_speed(self, other_cars):
+        # Define a safe following distance based on the car's behavior type
         safe_distance = 150 if self.color == 'green' else 120 if self.color == 'yellow' else 100
         buffer_distance = 10
         min_distance = float('inf')
+        # Loop through other cars to calculate the minimum distance to the next car in the same lane
         for other in other_cars:
             if self.y == other.y and other.x > self.x:
                 distance = other.x - self.x
                 if distance < min_distance:
                     min_distance = distance
+        # Adjust speed based on the minimum distance found
         if min_distance < safe_distance + buffer_distance:
             self.current_speed = max(1, self.current_speed - 2)
         else:
@@ -94,15 +97,16 @@ class Car:
                 passive_car_count += 1
         if self.x > SCREEN_WIDTH:
             self.x = -CAR_WIDTH
-        if self.y != self.target_y:
+        # Lane changing logic
+        if self.y != self.target_y:  # Check if the car needs to change lanes
             vertical_step = 2 if self.target_y > self.y else -2
             self.y += vertical_step
-            if abs(self.target_y - self.y) < 2:
+            if abs(self.target_y - self.y) < 2:  # Check if the car is close to the target lane
                 self.y = self.target_y
                 self.is_changing_lanes = False
+        # Lane change cooldown management
         if self.lane_change_cooldown > 0:
             self.lane_change_cooldown -= 1
-
 
 class Button:
     def __init__(self, x, y, width, height, text, action=None, dropdown_items=None, active_color=None):
@@ -141,10 +145,8 @@ class Button:
 
         return action
 
-
+# Setup and gameplay buttons
 setup_button = Button(50, 50, 100, 50, 'Setup')
-
-
 go_button = Button(200, 50, 100, 50, 'Go')
 lane_buttons = [Button(400 + i * 110, 20, 100, 30, f'{n} Lanes') for i, n in enumerate([3, 5, 7])]
 
@@ -160,14 +162,14 @@ car_pref_button = Button(800, 80, 150, 50, 'Car Preferences', dropdown_items=[
     Button(800, 230, 150, 50, 'More Green Cars', action=lambda: set_preference('More Green Cars'))
 ])
 
+# Toggle Schelling mode
 def toggle_schelling_mode():
     global schelling_active
     schelling_active = not schelling_active
+
 schelling_button = Button(510, 70, 100, 30, 'Schelling', action=toggle_schelling_mode,active_color=(0, 255, 0))
 
-
-
-
+# Main simulation loop
 running = True
 simulation_active = False
 num_lanes = 3
@@ -178,6 +180,7 @@ def create_cars():
     global cars, num_lanes, preferred_color
     cars.clear()
     lane_height = (SCREEN_HEIGHT - ROAD_TOP) / num_lanes
+    # Define color distributions based on the preferred setting
     color_choices = {
         'More Red Cars': ['red'] * 5 + ['yellow'] + ['green'],
         'More Yellow Cars': ['yellow'] * 5 + ['red'] + ['green'],
@@ -186,11 +189,12 @@ def create_cars():
     }
     selected_colors = color_choices.get(preferred_color, ['red', 'yellow', 'green'])
 
+    # Create cars for each lane
     for lane in range(num_lanes):
         y = ROAD_TOP + (lane + 0.5) * lane_height
         last_x = 50
         while True:
-            next_min_x = last_x + 100
+            next_min_x = last_x + 100  # Ensure a minimum spacing between cars
             next_max_x = min(SCREEN_WIDTH - 50, next_min_x + 200)
             if next_min_x >= SCREEN_WIDTH - 50:
                 break
@@ -198,7 +202,7 @@ def create_cars():
                 break
             x = random.randint(next_min_x, next_max_x)
             color = random.choice(selected_colors)
-            speed = 4 if color == 'red' else (3 if color == 'yellow' else 2)
+            speed = 4 if color == 'red' else (3 if color == 'yellow' else 2)  # Set speed based on the car color
             car = Car(x, y, speed, color)
             cars.append(car)
             last_x = x
@@ -230,16 +234,16 @@ def create_balanced_cars():
             cars.append(car)
             last_x = x
 
-setup_button.action = create_balanced_cars
+setup_button.action = create_balanced_cars  # Assign this function to the setup button action
 
 def apply_schelling_sort():
     global cars, num_lanes
     if not schelling_active:
         return
-
+    # Sort cars based on their speed in descending order
     sorted_cars = sorted(cars, key=lambda x: -x.base_speed)
     cars_per_lane = len(sorted_cars) // num_lanes
-
+    # Distribute cars across lanes based on their sorted order
     for i, car in enumerate(sorted_cars):
         lane_index = i // cars_per_lane
         lane_index = min(lane_index, num_lanes - 1)
@@ -254,28 +258,31 @@ def move_cars():
 
     apply_schelling_sort()
 
+    # Manage lane reservations by decrementing their count and removing expired ones
     for lane in list(lane_reservations.keys()):
         lane_reservations[lane] -= 1
         if lane_reservations[lane] <= 0:
             del lane_reservations[lane]
 
+    # Process each car to adjust speed and potentially change lanes
     for car in sorted_cars:
         car.adjust_speed(sorted_cars)
+        # Check if car is eligible for lane change
         if not car.is_changing_lanes and car.lane_change_cooldown == 0:
             current_lane_index = int((car.y - ROAD_TOP) / lane_height)
-            possible_lanes = []
+            possible_lanes = []  # List of possible new lanes for the car
             if current_lane_index > 0:
                 possible_lanes.append(current_lane_index - 1)
             if current_lane_index < num_lanes - 1:
                 possible_lanes.append(current_lane_index + 1)
 
-            min_distance_current_lane = float('inf')
+            min_distance_current_lane = float('inf')  # Initialize the minimum distance in the current lane
             for other in sorted_cars:
-                if other.y == car.y and other.x > car.x:
+                if other.y == car.y and other.x > car.x:  # Compare distance with cars ahead in the same lane
                     distance = other.x - car.x
                     if distance < min_distance_current_lane:
                         min_distance_current_lane = distance
-
+            # Evaluate potential new lanes for safety and feasibility of lane change
             for new_lane in possible_lanes:
                 new_y = ROAD_TOP + (new_lane + 0.5) * lane_height
                 projected_safe = True
@@ -290,7 +297,7 @@ def move_cars():
                             break
                         if distance < min_distance_new_lane:
                             min_distance_new_lane = distance
-
+                # If the new lane is better and safe, initiate lane change
                 if new_lane not in lane_reservations and projected_safe and min_distance_new_lane > min_distance_current_lane:
                     car.target_y = new_y
                     car.is_changing_lanes = True

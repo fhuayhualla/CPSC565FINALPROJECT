@@ -12,11 +12,12 @@ The simulation uses the Pygame library in Python for building the model. Cars ar
 ## How to Use It
 To run the simulation, ensure Python and Pygame are installed, then simply just run the main file. The interface includes buttons such as "Setup" to prepare the initial state, "Go" to start the simulation, and controls for setting preferences like the number of lanes or the distribution of car types or the Schelling effect.
 
-- **Setup Button**: Initializes or resets the simulation environment.
+- **Setup Button**: Initializes or resets the simulation environment (makes for an even distribution among the three different car types).
 - **Go Button**: Starts or pauses the simulation.
 - **Car Preferences**: Allows selection of a preference for more cars of a specific color (driver type).
 - **Schelling Button**: Toggles the Schelling mode, which sorts cars based on their speed to simulate sorting in traffic lanes, faster cars go on the left lane (top of the world), slower cars go on the right lane (bottom of the world). 
 - **Lane Button**: Adjusts the number of lanes in the simulation. Select from options such as 3, 5, or 7 lanes to see how different lane configurations impact traffic flow and car interactions.
+- **Counters**: There is a counter for each car type that can help visualize which car seems to be performing the best, this counter goes up 1 each time a car goes around the world once.
 
 ## Things to Notice
 Observe how different car behaviors affect traffic flow and lane changes. Notice patterns such as clustering of similar car types when using Schelling and how the model's various features affect overall road speeds.
@@ -30,6 +31,7 @@ Observe how different car behaviors affect traffic flow and lane changes. Notice
 Consider adding features such as:
 - Other types of road infrastructures (i.e. suburban road).
 - Environmental effects like weather conditions that could affect driving behavior.
+- There is still occasional collisions between cars, so adding an even more robust instruction set would certainly be beneficial
 
 ## Related Models
 
