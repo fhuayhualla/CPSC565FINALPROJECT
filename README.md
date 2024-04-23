@@ -10,7 +10,7 @@ This simulation explores traffic behavior within a highway environment, focusing
 The simulation uses the Pygame library in Python for building the model. Cars are represented as colored rectangles that move across the screen, simulating a road environment. The quantity of cars that appear in the simulation at any given time depends on their spawning locations and is subject to certain constraints (such as how far each car should be from each other), however world use space is maximized. Each car's behavior is influenced by its speed, the proximity of other cars, and its tendency to change lanes. Aggressive drivers tend to change lanes more frequently and maintain less distance from the car in front of them as well as have a more rapid acceleration characteristic, while passive drivers do the opposite, and normal drivers have a more balanced approached.
 
 ## How to Use It
-To run the simulation, ensure Python and Pygame are installed, then simply just run the main file. The interface includes buttons such as "Setup" to prepare the initial state, "Go" to start the simulation, and controls for setting preferences like the number of lanes or the distribution of car types or the Schelling effect.
+To run the simulation, ensure Python and Pygame are installed (using an IDE like Pycharm is recommended), then simply just run the main file. The interface includes buttons such as "Setup" to prepare the initial state, "Go" to start the simulation, and controls for setting preferences like the number of lanes or the distribution of car types or the Schelling effect.
 
 - **Setup Button**: Initializes or resets the simulation environment (makes for an even distribution among the three different car types).
 - **Go Button**: Starts or pauses the simulation.
