@@ -41,4 +41,6 @@ Consider adding features such as:
 -   **Application in Schelling Feature**: The Schelling feature in the simulation adapts by grouping cars in terms of their speed, in this case more aggressive cars staying on the left lane, and more passive cars on the right lane.
 
 ## Credits and References
-This model was developed using Pygame, a Python library for making multimedia applications. Refer to the Pygame documentation for more details on how to utilize and extend this framework for other simulations.
+1. Pygame Library
+2. NetLogo Segregation Model
+3. Wikimedia Foundation. (2024, February 10). Schelling's model of segregation. *Wikipedia*. Available at [https://en.wikipedia.org/wiki/Schelling's_model_of_segregation](https://en.wikipedia.org/wiki/Schelling's_model_of_segregation).
